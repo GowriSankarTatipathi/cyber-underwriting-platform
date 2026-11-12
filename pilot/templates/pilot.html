@@ -1,0 +1,51 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Underwriting pilot · {{ case.case_id }}</title>
+  <link rel="stylesheet" href="{% static 'pilot.css' %}">
+</head>
+<body>
+<header><div class="frame"><strong>Underwriting pilot</strong><span>Fictional case · Phase 1</span></div></header>
+<main class="frame">
+  <div class="eyebrow">{{ case.insurer }} / {{ case.product }} / {{ case.case_id }}</div>
+  <h1>{{ case.applicant }}</h1>
+  <p class="lede">{{ case.case_type }} review for {{ case.service }}. Checklist {{ case.checklist_version }}.</p>
+
+  <section aria-labelledby="recovery">
+    <h2 id="recovery">Recovery review</h2>
+    <nav aria-label="Restore tests">
+      <a href="?test=initial" {% if selected == "initial" %}aria-current="page"{% endif %}>Initial restore</a>
+      <a href="?test=retest" {% if selected == "retest" %}aria-current="page"{% endif %}>Verified retest</a>
+    </nav>
+    <div class="result"><strong>{{ test.name }}</strong><span>{{ result }}</span></div>
+    <dl class="metrics">
+      <div><dt>Recovery time</dt><dd>{{ test.duration_minutes|default_if_none:"Unknown" }} min</dd><small>Target {{ case.targets.duration_minutes }} min</small></div>
+      <div><dt>Recovered data age</dt><dd>{{ test.data_age_minutes|default_if_none:"Unknown" }} min</dd><small>Target {{ case.targets.data_age_minutes }} min</small></div>
+    </dl>
+    <p class="detail">Sample record {{ test.source }}. Functional checks {{ test.functional_checks_passed|yesno:"passed,failed,need review" }}.</p>
+    {% if result == "Targets met" %}
+    <p class="next"><strong>Review next.</strong> Confirm the retest scope and request the missing access review before recording the insurer’s decision.</p>
+    {% elif result == "Target missed" or result == "Functional checks failed" %}
+    <p class="next"><strong>Review next.</strong> Ask the IT provider for corrective work and a supervised retest of order processing.</p>
+    {% else %}
+    <p class="next"><strong>Review next.</strong> Request the missing restore measurements or functional checks.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="checklist">
+    <h2 id="checklist">Evidence checklist</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Requirement</th><th scope="col">Accepted evidence</th><th scope="col">Freshness</th><th scope="col">Sample status</th></tr></thead>
+      <tbody>
+        {% for item in case.checklist %}
+        <tr><th scope="row">{{ item.name }}</th><td>{{ item.evidence }}{% if item.source %}<small class="source">{{ item.source }}</small>{% endif %}</td><td>{{ item.freshness }}</td><td>{{ item.status }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+</main>
+</body>
+</html>

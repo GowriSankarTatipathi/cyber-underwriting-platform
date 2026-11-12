@@ -1,0 +1,20 @@
+{
+  "insurer": "Harborline Specialty (fictional)",
+  "product": "Commercial cyber",
+  "checklist_version": "pilot-1",
+  "case_id": "DEMO-001",
+  "case_type": "Renewal",
+  "applicant": "Maple Street Retail (fictional)",
+  "service": "Order processing",
+  "targets": {"duration_minutes": 240, "data_age_minutes": 60},
+  "checklist": [
+    {"name": "Privileged account MFA", "evidence": "Dated identity export showing MFA coverage and account scope", "freshness": "90 days", "status": "Verified", "source": "DEMO-IDENTITY-01"},
+    {"name": "Access review", "evidence": "Signed review with covered accounts, date, and unresolved access issues", "freshness": "180 days", "status": "Missing", "source": ""},
+    {"name": "Backup coverage", "evidence": "Job and inventory records linking backups to order processing", "freshness": "30 days", "status": "Verified", "source": "DEMO-BACKUP-01"},
+    {"name": "Supervised restore", "evidence": "Test report with service scope, recovery timing, data age, and functional checks", "freshness": "180 days", "status": "Review test below", "source": ""}
+  ],
+  "tests": {
+    "initial": {"name": "Initial restore", "duration_minutes": 420, "data_age_minutes": 35, "functional_checks_passed": true, "source": "DEMO-RESTORE-01"},
+    "retest": {"name": "Verified retest", "duration_minutes": 180, "data_age_minutes": 25, "functional_checks_passed": true, "source": "DEMO-RESTORE-02"}
+  }
+}
