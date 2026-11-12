@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from workspaces.models import Case, EvidenceRequest
 from workspaces.permissions import get_case
-from workspaces.services import audit
+from workspaces.services import audit, lock_case
 from .models import BackupJob, ControlAssessment, Document, EvidenceReview, EvidenceVersion, FileScan, RecoveryPolicy, RestoreReview, RestoreTest, Service
 from .permissions import get_request, require_inventory_editor, require_reviewer, require_version
 from .rules import current_restore_status, evaluate_restore, evidence_snapshot, restore_control_tests, usable_version
@@ -57,6 +57,7 @@ def ensure_case_service(case):
 
 @transaction.atomic
 def create_service(user, case, data):
+    case = lock_case(case)
     require_inventory_editor(user, case)
     service = Service(case=case, created_by=user, **data)
     service.full_clean()
@@ -72,6 +73,7 @@ def create_service(user, case, data):
 
 @transaction.atomic
 def publish_policy(user, service, data):
+    lock_case(service.case)
     service = Service.objects.select_for_update().get(pk=service.pk)
     require_reviewer(user, service.case)
     number = (service.policies.aggregate(n=Max("number"))["n"] or 0) + 1
@@ -106,6 +108,7 @@ def upload_evidence(user, item, upload, service, title, source, scope, observed_
     pointer = None
     try:
         with transaction.atomic():
+            case = lock_case(case)
             # Serialize intake for a request, including first-document creation.
             item = EvidenceRequest.objects.select_for_update().get(pk=item.pk)
             existing = EvidenceVersion.objects.filter(submission_key=submission_key).first()
@@ -156,6 +159,7 @@ def rescan_version(user, version, data=None, initial=False):
     data = data if data is not None else read_private(version)
     status, engine, detail = scan_file(data, version.original_name)
     with transaction.atomic():
+        lock_case(version.document.request.case)
         user.refresh_from_db()
         case = require_version(user, version)
         if not initial:
@@ -167,6 +171,7 @@ def rescan_version(user, version, data=None, initial=False):
 
 @transaction.atomic
 def review_evidence(user, version, decision, scope_confirmed, rationale):
+    lock_case(version.document.request.case)
     case = require_version(user, version)
     require_reviewer(user, case)
     Document.objects.select_for_update().get(pk=version.document_id)
@@ -184,6 +189,7 @@ def review_evidence(user, version, decision, scope_confirmed, rationale):
 
 @transaction.atomic
 def assess_control(user, item, result, rationale, evidence_versions):
+    lock_case(item.case)
     case, item = get_request(user, item.case_id, item.pk)
     require_reviewer(user, case)
     EvidenceRequest.objects.select_for_update().get(pk=item.pk)
@@ -213,6 +219,7 @@ def assess_control(user, item, result, rationale, evidence_versions):
 
 @transaction.atomic
 def record_backup(user, item, data):
+    lock_case(item.case)
     case, item = get_request(user, item.case_id, item.pk)
     if item.kind != "backup":
         raise ValidationError("Use a backup coverage request to record a backup job.")
@@ -230,6 +237,7 @@ def record_backup(user, item, data):
 
 @transaction.atomic
 def record_restore(user, item, data):
+    lock_case(item.case)
     case, item = get_request(user, item.case_id, item.pk)
     if item.kind != "restore":
         raise ValidationError("Use a supervised restore request to record a test.")
@@ -260,6 +268,7 @@ def record_restore(user, item, data):
 
 @transaction.atomic
 def review_restore(user, test, scope_confirmed, rationale):
+    lock_case(test.request.case)
     case, item = get_request(user, test.request.case_id, test.request_id)
     require_reviewer(user, case)
     if not rationale.strip():

@@ -95,6 +95,7 @@ class Case(models.Model):
         RENEWAL = "renewal", "Renewal"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    renewal_of = models.OneToOneField("self", on_delete=models.PROTECT, null=True, blank=True, related_name="renewal_case")
     reference = models.CharField(max_length=40, unique=True)
     insurer = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="insurer_cases")
     applicant = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="applicant_cases")
@@ -173,6 +174,9 @@ class EvidenceRequest(models.Model):
     freshness_days = models.PositiveIntegerField()
     due_date = models.DateField(null=True, blank=True)
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True)
+
+    def __str__(self):
+        return self.title
 
 
 class CaseFile(models.Model):

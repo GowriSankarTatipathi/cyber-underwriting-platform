@@ -14,6 +14,11 @@ def audit(case, actor, action, detail=""):
     return AuditEvent.objects.create(case=case, actor=actor, action=action, detail=detail[:240])
 
 
+def lock_case(case):
+    """Call inside atomic transactions before evidence or workflow row locks."""
+    return Case.objects.select_for_update().get(pk=case.pk)
+
+
 def digest(token):
     return hashlib.sha256(token.encode()).hexdigest()
 

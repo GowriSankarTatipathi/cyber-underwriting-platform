@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 from .forms import AssignmentForm, CaseForm, ConsentForm, InvitationSignupForm, InviteForm, NotesForm, RequestAssignmentForm
 from .models import Case, CaseFile, CaseJob, Invitation, SharingGrant, User
 from .permissions import active_grant, accessible_cases, can_manage, get_case, insurer_memberships, insurer_role, is_owner, require_evidence_access, require_job_access, require_manager, require_owner, visible_requests
-from .services import accept_invitation, audit, create_case, find_invitation, issue_invitation
+from .services import accept_invitation, audit, create_case, find_invitation, issue_invitation, lock_case
 
 
 @login_required
@@ -42,7 +42,11 @@ def dashboard(request, workspace):
     query = request.GET.get("q", "").strip()[:160]
     if query:
         cases = cases.filter(applicant__name__icontains=query)
-    return render(request, "workspaces/dashboard.html", {"cases": cases.order_by("-created_at"), "workspace": workspace, "can_create": can_create, "query": query})
+    cases = list(cases.order_by("-created_at"))
+    for case in cases:
+        latest = case.decisions.first() if case.consent_active and insurer_role(request.user, case) else None
+        case.workspace_status = latest.get_outcome_display() if latest else case.status_label
+    return render(request, "workspaces/dashboard.html", {"cases": cases, "workspace": workspace, "can_create": can_create, "query": query})
 
 
 @login_required
@@ -76,6 +80,7 @@ def case_detail(request, case_id):
     invitations = case.invitations.order_by("-created_at") if owner or manager else []
     return render(request, "workspaces/case.html", {
         "case": case, "insurer_role": role, "owner": owner, "manager": manager,
+        "latest_decision": case.decisions.first() if role and case.consent_active else None,
         "requests": requests, "grants": grants, "invitations": invitations,
         "evidence_access": evidence_access, "can_inventory": evidence_access and (owner or role or bool(requests)), "consent_form": ConsentForm(),
         "assignment_form": AssignmentForm(case, initial={"assignee": case.assignee}),
@@ -88,7 +93,7 @@ def case_detail(request, case_id):
 @require_POST
 @transaction.atomic
 def assign_case(request, case_id):
-    case = get_case(request.user, case_id)
+    case = lock_case(get_case(request.user, case_id))
     require_manager(request.user, case)
     form = AssignmentForm(case, request.POST)
     if form.is_valid():
@@ -104,7 +109,7 @@ def assign_case(request, case_id):
 @require_POST
 @transaction.atomic
 def save_notes(request, case_id):
-    case = get_case(request.user, case_id)
+    case = lock_case(get_case(request.user, case_id))
     require_manager(request.user, case)
     form = NotesForm(request.POST, instance=case)
     if form.is_valid():
@@ -222,6 +227,8 @@ def assign_request(request, case_id, request_id):
     form = RequestAssignmentForm(case, request.POST or None, initial={"assigned_to": item.assigned_to})
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
+            case = lock_case(case)
+            require_evidence_access(request.user, case)
             item.assigned_to = form.cleaned_data["assigned_to"]
             item.save(update_fields=["assigned_to"])
             audit(case, request.user, "Evidence request assigned", item.title)

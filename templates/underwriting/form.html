@@ -1,0 +1,6 @@
+{% extends 'workspaces/base.html' %}
+{% block content %}
+<a class="back" href="{% url 'workflow' case.pk %}">← Case workflow</a>
+<p class="eyebrow">{{ case.reference }} / UNDERWRITING</p><h1>{{ title }}</h1><p class="muted">{{ intro }}</p>
+<section class="panel form-panel"><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button">{{ button }}</button></form></section>
+{% endblock %}

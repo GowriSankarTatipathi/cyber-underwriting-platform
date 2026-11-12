@@ -1,0 +1,2 @@
+{% extends 'workspaces/base.html' %}
+{% block content %}<p class="eyebrow">{{ case.reference }} / REPORT SHARING</p><h1>Secure report link ready</h1><section class="panel"><p>Recipient: <strong>{{ share.recipient.email }}</strong><br>Expires {{ share.expires_at|date:'M j, Y H:i' }} UTC</p><p>Copy this link for the recipient. Sign-in, MFA, and active case access are required.</p><code class="checksum">{{ share_url }}</code><p>No message has been sent.</p></section><a href="{% url 'report_detail' case.pk share.report_id %}">Return to report →</a>{% endblock %}

@@ -1,6 +1,6 @@
 # Cyber underwriting platform
 
-A local Django prototype for an insurer's cyber application and renewal workflow. Phases 1–3 now include PostgreSQL, two workspaces, required MFA, case permissions, private evidence uploads and document versions, control reviews, service inventory, and linked supervised restore tests. All included cases and accounts are fictional.
+A local Django prototype for an insurer's cyber application and renewal workflow. Phases 1–4 include PostgreSQL, two workspaces, required MFA, case permissions, private evidence versions, control reviews, supervised restores, findings and fixes, saved decisions, approved reports, and renewal history. All included cases and accounts are fictional.
 
 The frontend uses Django templates and CSS. Next.js is not part of this implementation. The original Phase 1 restore comparison remains at `/demo/`.
 
@@ -71,6 +71,14 @@ For the supervised restore request, record a 420-minute test against the 240-min
 
 The complete role-by-role walkthrough and S3 setup are in [PHASE3.md](PHASE3.md). Fictional upload samples are in `.local/phase3-samples/`.
 
+## Walk through Phase 4
+
+Open an authorized case and select **Findings, decisions & reports**. Create owned findings with priorities, reasons, deadlines, and evidence/fix/retest requests. Providers respond with exact evidence versions and linked retests; reviewers verify responses before closing findings.
+
+Use **Prepare decision review** to inspect a frozen snapshot and record the underwriter's outcome, rationale, and open conditions. Underwriters can approve expiring exceptions, approve business reports, and create revocable report links for named business owners. **Open next renewal** creates a fresh case linked to the original history, with new evidence requirements and authorization.
+
+See [PHASE4.md](PHASE4.md) for the complete walkthrough, decision rules, report approval, sharing permissions, and renewal boundaries.
+
 ## Verify
 
 With the project database running:
@@ -78,11 +86,11 @@ With the project database running:
 ```sh
 python manage.py check
 python -m pip install -r requirements-dev.txt
-python manage.py test workspaces evidence --noinput
+python manage.py test workspaces evidence underwriting --noinput
 python manage.py makemigrations --check --dry-run
 ```
 
-Tests run against a separate PostgreSQL test database. They cover real password and MFA flows, invitation email binding and replay, case creation and assignments, cross-insurer isolation, expired/revoked access, contributor privacy, private files, exports, worker authorization, CSRF, and the retained Phase 1 demonstration.
+Tests run against a separate PostgreSQL test database. They cover password and MFA flows, invitation binding and replay, cross-insurer isolation, expired/revoked access, contributor privacy, private evidence, restore verification, findings and fixes, decision snapshots, exceptions, approved report sharing, renewal history, CSRF, and the retained Phase 1 demonstration.
 
 ## Scope and next phase
 
@@ -90,6 +98,6 @@ Phase 3 adds private uploads, file checks and quarantine, document versions, ser
 
 Development uploads persist privately in `.local/evidence`. The S3 integration is implemented and tested with an emulator; a live bucket has not been configured or verified. Development file checks validate structure, not malware safety. A real pilot needs private versioned S3 storage and a configured external malware scanner. [PHASE3.md](PHASE3.md) explains both.
 
-Phase 4 adds findings, requests for corrective work, deadlines, conditions, expiring exceptions, saved underwriting decisions, approved reports, and renewal history. AI processing and monitoring remain later phases.
+Phase 4 is implemented locally. Reports are HTML with print styling and JSON downloads; named business-owner sharing requires sign-in, MFA, and current case access. Expiry is checked when records are accessed; email delivery and automatic reminder jobs are not implemented. Phase 5 adds authorized OCR/AI extraction, citations, and reviewer-controlled suggestions. Monitoring remains a later phase.
 
-See [Phase 3 setup and walkthrough](PHASE3.md), [Phase 2 access rules](PHASE2.md), and [the insurer workshop guide](PILOT.md).
+See [Phase 4 workflow](PHASE4.md), [Phase 3 evidence setup](PHASE3.md), [Phase 2 access rules](PHASE2.md), and [the insurer workshop guide](PILOT.md).
