@@ -69,7 +69,14 @@ def case_snapshot(case):
             row["revocation"] = records(type(exception.revocation).objects.filter(pk=exception.revocation.pk))[0] if hasattr(exception, "revocation") else None
             data["exceptions"].append(row)
         findings.append(data)
-    return normalize({"schema_version": 1, "rule_versions": ["evidence-v1", "restore-v1", "underwriting-v1"],
+    from ai_review.models import DraftDisposition
+    ai_followups = [{"finding_id": row.finding_id, "disposition_id": row.pk, "draft_id": row.draft_id,
+        "review_snapshot": row.draft.review_snapshot, "published_content": row.published_content,
+        "actor_id": row.actor_id, "created_at": row.created_at}
+        for row in DraftDisposition.objects.filter(finding__case=case, action="publish").select_related("draft").order_by("pk")]
+    # Preserve comparisons with Phase 4 snapshots until AI actually contributes a request.
+    ai_material = {"ai_followups": ai_followups} if ai_followups else {}
+    return normalize({"schema_version": 2 if ai_followups else 1, "rule_versions": ["evidence-v1", "restore-v1", "underwriting-v1"], **ai_material,
         "case": {"id": case.pk, "reference": case.reference, "kind": case.kind, "applicant": case.applicant.name,
             "insurer": case.insurer.name, "renewal_of": case.renewal_of_id, "due_date": case.due_date,
             "internal_notes": case.internal_notes},

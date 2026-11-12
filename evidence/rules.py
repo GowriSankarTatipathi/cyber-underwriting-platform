@@ -23,6 +23,16 @@ def evidence_snapshot(versions):
         for version in versions}
 
 
+def recovery_target_reasons(duration_minutes, data_age_minutes, policy):
+    """Shared deterministic target comparison; callers still verify scope and evidence."""
+    reasons = []
+    if duration_minutes is not None and duration_minutes > policy.duration_minutes:
+        reasons.append(f"Recovery time {duration_minutes} min exceeds the {policy.duration_minutes} min target.")
+    if data_age_minutes is not None and data_age_minutes > policy.data_age_minutes:
+        reasons.append(f"Recovered data age {data_age_minutes} min exceeds the {policy.data_age_minutes} min target.")
+    return reasons
+
+
 def evaluate_restore(test, scope_confirmed, at=None):
     at = at or timezone.now()
     reasons = []
@@ -47,10 +57,7 @@ def evaluate_restore(test, scope_confirmed, at=None):
         reasons.append("Every cited evidence version needs clean file checks, accepted scope, and fresh evidence.")
     if reasons:
         return "Inconclusive", reasons
-    if test.duration_minutes > test.policy.duration_minutes:
-        reasons.append(f"Recovery time {test.duration_minutes} min exceeds the {test.policy.duration_minutes} min target.")
-    if test.data_age_minutes > test.policy.data_age_minutes:
-        reasons.append(f"Recovered data age {test.data_age_minutes} min exceeds the {test.policy.data_age_minutes} min target.")
+    reasons.extend(recovery_target_reasons(test.duration_minutes, test.data_age_minutes, test.policy))
     return ("Target missed", reasons) if reasons else ("Passed", ["Scope, functional checks, evidence freshness, and both recovery targets are satisfied."])
 
 

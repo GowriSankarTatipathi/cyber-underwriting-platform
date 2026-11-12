@@ -1,33 +1,45 @@
 # Cyber underwriting platform
 
-A local Django prototype for an insurer's cyber application and renewal workflow. Phases 1–4 include PostgreSQL, two workspaces, required MFA, case permissions, private evidence versions, control reviews, supervised restores, findings and fixes, saved decisions, approved reports, and renewal history. All included cases and accounts are fictional.
+A local Django prototype for an insurer's cyber application and renewal workflow. Phases 1–5 include PostgreSQL, two workspaces, required MFA, case permissions, private evidence versions, control reviews, supervised restores, findings and fixes, saved decisions, approved reports, renewal history, and assisted evidence review with OCR and cited suggestions. All included cases and accounts are fictional.
 
 The frontend uses Django templates and CSS. Next.js is not part of this implementation. The original Phase 1 restore comparison remains at `/demo/`.
 
 ## Run locally
 
-Use Python 3.10 or newer and PostgreSQL 14 or newer. From this folder:
+Use Python 3.10 or newer and PostgreSQL 14 or newer. Phase 5 also uses Redis and Tesseract for queued processing and OCR (`brew install redis tesseract` on macOS if missing). From this folder:
 
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 python scripts/dev_db.py start
+python scripts/dev_queue.py start
 python manage.py migrate
 python manage.py seed_phase2
 python manage.py prepare_phase3_demo
+python manage.py prepare_phase5_demo
 python manage.py runserver 127.0.0.1:8000
 ```
 
 Open http://127.0.0.1:8000/.
 
+For Phase 5 processing, keep a worker running in a second terminal from the project folder:
+
+```sh
+source .venv/bin/activate
+celery -A pilot worker --pool=solo --concurrency=1 --loglevel=INFO
+```
+
+The default local demo parser uses no API key and sends no documents externally. Live OpenAI setup, case authorization, and the review walkthrough are in [PHASE5.md](PHASE5.md). Manual evidence review works without the queue or worker.
+
 `dev_db.py` uses `initdb` and `pg_ctl` from your PATH. It creates a separate PostgreSQL cluster under `.local/postgres`, with a password-protected Unix socket under `.local/run` on port 55432 and no TCP listener. It does not modify a Homebrew database or service. It generates a private `.env` once and does not overwrite an existing configuration.
 
 If you already have a database, or are using Windows, copy `.env.example` to `.env`, set a persistent random `DJANGO_SECRET_KEY` and your PostgreSQL connection settings, create the configured database, and omit `dev_db.py`. For tests, the database role needs permission to create a test database. On Windows activate with `.venv\Scripts\activate`.
 
-Stop the web server with Ctrl+C. Stop this project's database with:
+Stop the web server and worker with Ctrl+C. Stop this project's queue and database with:
 
 ```sh
+python scripts/dev_queue.py stop
 python scripts/dev_db.py stop
 ```
 
@@ -86,11 +98,11 @@ With the project database running:
 ```sh
 python manage.py check
 python -m pip install -r requirements-dev.txt
-python manage.py test workspaces evidence underwriting --noinput
+python manage.py test workspaces evidence underwriting ai_review --noinput
 python manage.py makemigrations --check --dry-run
 ```
 
-Tests run against a separate PostgreSQL test database. They cover password and MFA flows, invitation binding and replay, cross-insurer isolation, expired/revoked access, contributor privacy, private evidence, restore verification, findings and fixes, decision snapshots, exceptions, approved report sharing, renewal history, CSRF, and the retained Phase 1 demonstration.
+Tests run against a separate PostgreSQL test database. They cover password and MFA flows, invitation binding and replay, cross-insurer isolation, expired/revoked access, contributor privacy, private evidence, restore verification, findings and fixes, decision snapshots, exceptions, approved report sharing, renewal history, CSRF, cited extraction, OCR, human review, retries, and the retained Phase 1 demonstration. With Redis running, prefix the test command with `AI_RUN_QUEUE_TEST=1` to include the real Celery worker test.
 
 ## Scope and next phase
 
@@ -98,6 +110,8 @@ Phase 3 adds private uploads, file checks and quarantine, document versions, ser
 
 Development uploads persist privately in `.local/evidence`. The S3 integration is implemented and tested with an emulator; a live bucket has not been configured or verified. Development file checks validate structure, not malware safety. A real pilot needs private versioned S3 storage and a configured external malware scanner. [PHASE3.md](PHASE3.md) explains both.
 
-Phase 4 is implemented locally. Reports are HTML with print styling and JSON downloads; named business-owner sharing requires sign-in, MFA, and current case access. Expiry is checked when records are accessed; email delivery and automatic reminder jobs are not implemented. Phase 5 adds authorized OCR/AI extraction, citations, and reviewer-controlled suggestions. Monitoring remains a later phase.
+Phase 4 is implemented locally. Reports are HTML with print styling and JSON downloads; named business-owner sharing requires sign-in, MFA, and current case access. Expiry is checked when records are accessed; email delivery and automatic reminder jobs are not implemented.
 
-See [Phase 4 workflow](PHASE4.md), [Phase 3 evidence setup](PHASE3.md), [Phase 2 access rules](PHASE2.md), and [the insurer workshop guide](PILOT.md).
+Phase 5 adds Celery jobs, OCR, validated citations, accept/correct/reject actions, discrepancy flags, and underwriter-approved follow-ups. Local demo parsing is runnable now. The OpenAI adapter has mocked integration tests; live model access and extraction quality remain unverified until configured and evaluated. Phase 6 is staging and the insurer pilot; monitoring remains later work.
+
+See [Phase 5 assisted review](PHASE5.md), [Phase 4 workflow](PHASE4.md), [Phase 3 evidence setup](PHASE3.md), [Phase 2 access rules](PHASE2.md), and [the insurer workshop guide](PILOT.md).

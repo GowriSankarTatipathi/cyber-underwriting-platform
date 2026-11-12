@@ -1,0 +1,5 @@
+{% extends 'workspaces/base.html' %}
+{% block content %}<a class="back" href="{% if job %}{% url 'ai_job' case.pk job.pk %}{% else %}{% url 'ai_overview' case.pk %}{% endif %}">← Evidence processing</a><p class="eyebrow">{{ case.reference }} / ASSISTED REVIEW</p><h1>{{ title }}</h1><p class="muted">{{ intro }}</p>
+{% if fact %}<section class="panel"><h2>Original suggestion</h2><p><strong>{{ fact.value }}</strong></p>{% for error in fact.validation_errors %}<p class="notice">{{ error }}</p>{% endfor %}{% for citation in fact.citations %}<blockquote>{{ citation.quote }}</blockquote><small>{{ citation.passage_id }} · {{ citation.locator }}</small>{% endfor %}<p><a href="{% url 'evidence_download' case.pk job.version_id %}">Download the original document version ↓</a></p></section>{% endif %}
+<section class="panel form-panel"><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button">{{ button }}</button></form></section>
+{% if result %}{% include 'ai_review/passages.html' %}{% endif %}{% endblock %}

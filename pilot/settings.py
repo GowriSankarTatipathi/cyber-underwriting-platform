@@ -14,7 +14,7 @@ ROOT_URLCONF = "pilot.urls"
 WSGI_APPLICATION = "pilot.wsgi.application"
 INSTALLED_APPS = [
     "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions",
-    "django.contrib.messages", "django.contrib.staticfiles", "workspaces", "evidence", "underwriting",
+    "django.contrib.messages", "django.contrib.staticfiles", "workspaces", "evidence", "underwriting", "ai_review",
     "allauth", "allauth.account", "allauth.mfa", "pilot",
 ]
 MIDDLEWARE = [
@@ -118,3 +118,31 @@ FILE_UPLOAD_HANDLERS = [
     "django.core.files.uploadhandler.MemoryFileUploadHandler",
     "django.core.files.uploadhandler.TemporaryFileUploadHandler",
 ]
+
+# Queue payloads contain job IDs only. Private results and status stay in PostgreSQL.
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", f"redis+socket://{BASE_DIR / '.local/run/redis.sock'}?virtual_host=0")
+CELERY_BROKER_CONNECTION_TIMEOUT = 2
+CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_connect_timeout": 2, "socket_timeout": 2, "visibility_timeout": 600}
+CELERY_TASK_DEFAULT_QUEUE = "evidence_ai"
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TASK_SEND_SENT_EVENT = False
+CELERY_WORKER_SEND_TASK_EVENTS = False
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_TASK_SOFT_TIME_LIMIT = 240
+CELERY_TASK_TIME_LIMIT = 270
+CELERY_TASK_PUBLISH_RETRY = False
+AI_REVIEW_PROVIDER = os.getenv("AI_REVIEW_PROVIDER", "demo" if DEBUG else "off")
+AI_ALLOW_EXTERNAL = os.getenv("AI_ALLOW_EXTERNAL", "false").lower() == "true"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "")
+AI_MAX_PAGES = 25
+AI_MAX_TEXT_CHARS = 100000
+AI_PREPARATION_TIMEOUT = 90
+AI_PROVIDER_TIMEOUT = 60
+AI_LEASE_SECONDS = 300
+AI_MAX_ATTEMPTS = 3
+AI_TESSERACT_COMMAND = os.getenv("AI_TESSERACT_COMMAND", "tesseract")

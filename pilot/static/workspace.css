@@ -3,3 +3,5 @@
 
 /* Phase 4 review records remain readable on narrow screens and in print. */
 .snapshot-json{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem;line-height:1.55;max-height:36rem;overflow:auto;background:#f4f6fa;padding:1rem;border-radius:8px}.checksum{display:block;overflow-wrap:anywhere;white-space:normal}.action-row form{margin:0}.form-panel ul{list-style:none;padding:0}.form-panel input[type=checkbox]{width:auto}.request-card h4{margin-bottom:.4rem}button:disabled{opacity:.55;cursor:not-allowed}@media print{.topbar,.sidebar,.back,.action-row,form{display:none!important}.shell{display:block}main{max-width:none}.panel{break-inside:avoid;box-shadow:none}.snapshot-json{max-height:none}}
+
+.source-passage{padding:1rem 0;border-top:1px solid #e2e7ef}.source-text{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.65;background:#f4f6fa;padding:1rem;border-radius:8px}blockquote{margin:1rem 0;padding:.75rem 1rem;border-left:3px solid #5274a3;background:#f4f6fa;white-space:pre-wrap;overflow-wrap:anywhere}
