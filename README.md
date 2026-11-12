@@ -1,6 +1,6 @@
 # Cyber underwriting platform
 
-A local Django prototype for an insurer's cyber application and renewal workflow. Phase 2 adds PostgreSQL, an underwriter workspace, an evidence portal, invitation-based accounts, required authenticator MFA, case assignments, and expiring sharing grants. All included cases and accounts are fictional.
+A local Django prototype for an insurer's cyber application and renewal workflow. Phases 1–3 now include PostgreSQL, two workspaces, required MFA, case permissions, private evidence uploads and document versions, control reviews, service inventory, and linked supervised restore tests. All included cases and accounts are fictional.
 
 The frontend uses Django templates and CSS. Next.js is not part of this implementation. The original Phase 1 restore comparison remains at `/demo/`.
 
@@ -15,6 +15,7 @@ python -m pip install -r requirements.txt
 python scripts/dev_db.py start
 python manage.py migrate
 python manage.py seed_phase2
+python manage.py prepare_phase3_demo
 python manage.py runserver 127.0.0.1:8000
 ```
 
@@ -47,6 +48,8 @@ Each user must enroll their own authenticator app. Sign in, confirm your passwor
 
 Demo emails are already marked verified by the trusted seed command. New accounts can only be created through an invitation addressed to their email. Public signup is closed. MFA secrets are encrypted in PostgreSQL; rate-limit and TOTP replay data use a shared database cache.
 
+If a previously opened sign-in page reports `Origin checking failed - null`, reload http://127.0.0.1:8000/accounts/login/ before trying again. Older pages used a `no-referrer` policy that could hide the origin of form submissions. The app now uses `same-origin`, with CSRF protection enabled. If using an embedded preview, open the URL directly in your browser. Restart `runserver` first if you started it with `--noreload`.
+
 ## Walk through Phase 2
 
 1. Sign in as the underwriter. Open `DEMO-001`, or use **Open a case** to create an application or renewal with the `pilot-1` checklist.
@@ -55,10 +58,18 @@ Demo emails are already marked verified by the trusted seed command. New account
 4. Sign out, open the link, and sign in as the owner. Finish MFA setup, then **Accept case invitation**. Use **Overview** to return to a pending invitation after setup if necessary.
 5. As the owner, explicitly authorize case access for a chosen duration. Then invite `technician@example.test` as the IT provider.
 6. Sign in as the technician through that invitation and accept it. The portal shows the authorized case, initially with no assigned requests.
-7. As the owner or underwriter, assign requests to the technician. The technician can now see only their assigned list. A fictional restore brief on `DEMO-001` exercises private downloads; no real upload processing exists yet.
+7. As the owner or underwriter, assign requests to the technician. The technician can now see only their assigned list. A legacy fictional restore brief on `DEMO-001` exercises Phase 2 downloads. Use **Open evidence & review** for Phase 3 uploads, versions, and assessments.
 8. Try **Export list**, then revoke the technician's grant or revoke business authorization. New file and export requests must fail immediately. Internal insurer notes never appear in contributor pages or exports.
 
 Use separate browser profiles or sign out between roles. Invitation links are shown once and stored only as hashes. Reissuing an invitation invalidates earlier unused links for that recipient and case.
+
+## Walk through Phase 3
+
+From a case, use **Open evidence & review** for each checklist item. Submit a document, have an insurer reviewer accept its exact version, then record the control assessment. Use **Service inventory & recovery targets** to view or add critical services and publish new target versions.
+
+For the supervised restore request, record a 420-minute test against the 240-minute target, review it, then upload the retest document as version 2 and record a linked 180-minute retest. The original missed result remains in history and the missing access review stays open. Backup jobs have their own records and cannot imply a successful restore.
+
+The complete role-by-role walkthrough and S3 setup are in [PHASE3.md](PHASE3.md). Fictional upload samples are in `.local/phase3-samples/`.
 
 ## Verify
 
@@ -66,7 +77,8 @@ With the project database running:
 
 ```sh
 python manage.py check
-python manage.py test workspaces --noinput
+python -m pip install -r requirements-dev.txt
+python manage.py test workspaces evidence --noinput
 python manage.py makemigrations --check --dry-run
 ```
 
@@ -74,10 +86,10 @@ Tests run against a separate PostgreSQL test database. They cover real password 
 
 ## Scope and next phase
 
-Phase 2 provides saved cases, pinned checklist versions, request assignments, MFA, access grants, invitation acceptance/revocation, business consent, and access audit events. Insurer administrators can access their insurer's cases; underwriters access created or assigned cases; technical reviewers access assigned cases. Platform superuser status alone does not grant case access.
+Phase 3 adds private uploads, file checks and quarantine, document versions, service inventory, versioned recovery targets, evidence reviews, control assessments, backup jobs, and linked restore tests. Case exports include evidence provenance while preserving the Phase 2 authorization rules.
 
-Case files currently use private local fictional fixtures to exercise permissions. The job model and authorization service establish a boundary for future workers; no Celery processing is running. PostgreSQL is the persistent record store. Public document serving is not configured.
+Development uploads persist privately in `.local/evidence`. The S3 integration is implemented and tested with an emulator; a live bucket has not been configured or verified. Development file checks validate structure, not malware safety. A real pilot needs private versioned S3 storage and a configured external malware scanner. [PHASE3.md](PHASE3.md) explains both.
 
-Phase 3 adds private S3 upload intake, document versions, service inventory, reviewer evidence actions, calculated freshness, and persistent supervised restore/retest records. The request list's freshness values are requirements, not calculated evidence evaluations. Underwriting decisions, report approval, renewal history, AI, external connectors, and production deployment remain later phases.
+Phase 4 adds findings, requests for corrective work, deadlines, conditions, expiring exceptions, saved underwriting decisions, approved reports, and renewal history. AI processing and monitoring remain later phases.
 
-See [Phase 2 implementation and access rules](PHASE2.md) and [the Phase 1 insurer workshop guide](PILOT.md).
+See [Phase 3 setup and walkthrough](PHASE3.md), [Phase 2 access rules](PHASE2.md), and [the insurer workshop guide](PILOT.md).

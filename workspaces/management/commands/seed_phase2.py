@@ -46,8 +46,10 @@ class Command(BaseCommand):
             business = Organization.objects.create(name=sample["applicant"], kind="business")
             case = Case.objects.create(reference="DEMO-001", insurer=insurer, applicant=business, checklist=checklist, service=sample["service"], created_by=users["underwriter"], assignee=users["underwriter"], due_date=timezone.localdate() + timedelta(days=14))
             for item in checklist.requirements:
-                EvidenceRequest.objects.create(case=case, title=item["name"], description=item["evidence"], freshness_days=item["freshness_days"], due_date=case.due_date)
+                EvidenceRequest.objects.create(case=case, kind={"Supervised restore": "restore", "Backup coverage": "backup"}.get(item["name"], "control"), title=item["name"], description=item["evidence"], freshness_days=item["freshness_days"], due_date=case.due_date)
             audit(case, users["underwriter"], "Demo case created", "Business authorization pending")
+        from evidence.services import ensure_case_service
+        ensure_case_service(case)
         item = case.requests.filter(title="Supervised restore").first()
         if item:
             key = f"{case.pk}/restore-brief.txt"

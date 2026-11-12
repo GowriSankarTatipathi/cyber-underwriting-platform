@@ -88,8 +88,10 @@ def create_case(user, data):
     applicant = Organization.objects.create(name=data["business_name"], kind="business")
     case = Case.objects.create(reference="CY-" + uuid.uuid4().hex[:10].upper(), insurer=checklist.insurer, applicant=applicant, checklist=checklist, kind=data["kind"], service=data["service"], due_date=data["due_date"], created_by=user, assignee=user)
     require_manager(user, case)
+    from evidence.services import ensure_case_service
+    ensure_case_service(case)
     for item in checklist.requirements:
-        EvidenceRequest.objects.create(case=case, title=item["name"], description=item["evidence"], freshness_days=item["freshness_days"], due_date=case.due_date)
+        EvidenceRequest.objects.create(case=case, kind=item.get("kind", {"Supervised restore": "restore", "Backup coverage": "backup"}.get(item["name"], "control")), title=item["name"], description=item["evidence"], freshness_days=item["freshness_days"], due_date=case.due_date)
     audit(case, user, "Case created", f"Checklist {checklist.version}")
     invitation, token = issue_invitation(case, user, data["owner_email"], "owner", applicant.name)
     return case, invitation, token

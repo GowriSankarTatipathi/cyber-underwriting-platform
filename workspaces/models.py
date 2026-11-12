@@ -165,6 +165,7 @@ class Invitation(models.Model):
 
 
 class EvidenceRequest(models.Model):
+    kind = models.CharField(max_length=16, choices=[("control", "Security control"), ("backup", "Backup coverage"), ("restore", "Supervised restore")], default="control")
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="requests")
     title = models.CharField(max_length=160)

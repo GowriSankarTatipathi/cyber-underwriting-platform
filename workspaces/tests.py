@@ -337,6 +337,59 @@ class WorkspaceTests(TestCase):
         self.assertEqual(technician.get(reverse("export_case", args=[case.pk])).status_code, 404)
 
 
+class LoginCsrfTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = make_user("csrf-login")
+        self.client = Client(enforce_csrf_checks=True, HTTP_HOST="127.0.0.1:8000")
+        self.url = reverse("account_login")
+
+    def login_form(self, secure=False):
+        response = self.client.get(self.url, secure=secure)
+        self.assertEqual(response.status_code, 200)
+        return response, {
+            "login": self.user.email,
+            "password": PASSWORD,
+            "csrfmiddlewaretoken": str(response.context["csrf_token"]),
+        }
+
+    def test_login_preserves_same_origin_and_accepts_valid_csrf(self):
+        page, data = self.login_form()
+        # no-referrer makes browsers send Origin: null on normal form posts.
+        self.assertEqual(page["Referrer-Policy"], "same-origin")
+        self.assertIn("no-store", page["Cache-Control"])
+        response = self.client.post(self.url, data, HTTP_ORIGIN="http://127.0.0.1:8000")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.session["_auth_user_id"], str(self.user.pk))
+        self.assertRedirects(self.client.get("/"), reverse("mfa_activate_totp"), fetch_redirect_response=False)
+
+    def test_https_login_accepts_same_origin_referer_without_origin_header(self):
+        page, data = self.login_form(secure=True)
+        self.assertEqual(page["Referrer-Policy"], "same-origin")
+        response = self.client.post(self.url, data, secure=True, HTTP_REFERER=f"https://127.0.0.1:8000{self.url}")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.session["_auth_user_id"], str(self.user.pk))
+
+    def test_null_and_foreign_origins_remain_rejected_with_valid_token(self):
+        _, data = self.login_form()
+        for origin in ("null", "https://untrusted.example"):
+            with self.subTest(origin=origin):
+                response = self.client.post(self.url, data, HTTP_ORIGIN=origin)
+                self.assertEqual(response.status_code, 403)
+                self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_same_origin_still_requires_valid_csrf_token(self):
+        _, data = self.login_form()
+        for token in (None, "invalid-token"):
+            with self.subTest(token=token):
+                submission = {key: value for key, value in data.items() if key != "csrfmiddlewaretoken"}
+                if token is not None:
+                    submission["csrfmiddlewaretoken"] = token
+                response = self.client.post(self.url, submission, HTTP_ORIGIN="http://127.0.0.1:8000")
+                self.assertEqual(response.status_code, 403)
+                self.assertNotIn("_auth_user_id", self.client.session)
+
+
 class AuthenticationTests(TestCase):
     def setUp(self):
         cache.clear()

@@ -33,7 +33,7 @@ Cases reference an insurer-specific, immutable checklist version. New versions a
 
 Audit records cover case creation, invitations, acceptance, consent, assignments, revocations, internal-note updates, downloads, and exports. Phase 2 does not claim a tamper-proof audit store or regulatory retention policy; those operational decisions remain part of the insurer pilot.
 
-The local restore brief is explicitly fictional. Files are served only through a case-scoped view, with no public media route, path containment checks, attachment disposition, and no-store caching. There is no upload endpoint. Phase 3 replaces this fixture boundary with private S3 intake and document versions.
+Historical Phase 2 boundary: the local restore brief is explicitly fictional. Files are served only through a case-scoped view, with no public media route, path containment checks, attachment disposition, and no-store caching. Phase 2 had no upload endpoint. Phase 3 now adds the evidence intake and versioned review workflow described in [PHASE3.md](PHASE3.md); this original fixture remains a separate fictional sample.
 
 ## Operator setup
 

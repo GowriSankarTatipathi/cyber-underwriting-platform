@@ -20,5 +20,4 @@ class WorkspaceSecurityMiddleware:
         response = self.get_response(request)
         if not request.path.startswith("/static/"):
             response["Cache-Control"] = "no-store, private"
-            response["Referrer-Policy"] = "no-referrer"
         return response

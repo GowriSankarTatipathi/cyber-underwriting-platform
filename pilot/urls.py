@@ -26,5 +26,6 @@ def pilot_case(request):
 urlpatterns = [
     path("demo/", pilot_case, name="pilot_case"),
     path("accounts/", include("allauth.urls")),
+    path("", include("evidence.urls")),
     path("", include("workspaces.urls")),
 ]

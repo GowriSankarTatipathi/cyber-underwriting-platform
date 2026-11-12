@@ -14,7 +14,7 @@ ROOT_URLCONF = "pilot.urls"
 WSGI_APPLICATION = "pilot.wsgi.application"
 INSTALLED_APPS = [
     "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions",
-    "django.contrib.messages", "django.contrib.staticfiles", "workspaces",
+    "django.contrib.messages", "django.contrib.staticfiles", "workspaces", "evidence",
     "allauth", "allauth.account", "allauth.mfa", "pilot",
 ]
 MIDDLEWARE = [
@@ -95,5 +95,26 @@ SECURE_SSL_REDIRECT = not DEBUG
 SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
-SECURE_REFERRER_POLICY = "no-referrer"
+# Preserve the origin on same-site form posts for Django's CSRF checks,
+# while withholding referrer URLs from other sites.
+SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
+
+# Evidence is never exposed by a public MEDIA_URL.
+EVIDENCE_STORAGE_BACKEND = os.getenv("EVIDENCE_STORAGE_BACKEND", "local")
+EVIDENCE_LOCAL_ROOT = BASE_DIR / ".local" / "evidence"
+EVIDENCE_MAX_BYTES = 10 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
+EVIDENCE_S3_BUCKET = os.getenv("EVIDENCE_S3_BUCKET", "")
+EVIDENCE_S3_REGION = os.getenv("AWS_REGION", "us-east-1")
+EVIDENCE_S3_ENDPOINT_URL = os.getenv("EVIDENCE_S3_ENDPOINT_URL") or None
+EVIDENCE_S3_KMS_KEY_ID = os.getenv("EVIDENCE_S3_KMS_KEY_ID", "")
+EVIDENCE_SCAN_MODE = os.getenv("EVIDENCE_SCAN_MODE", "basic" if DEBUG else "external")
+EVIDENCE_SCAN_COMMAND = os.getenv("EVIDENCE_SCAN_COMMAND", "[]")
+DATA_UPLOAD_MAX_NUMBER_FILES = 1
+FILE_UPLOAD_HANDLERS = [
+    "evidence.upload_handlers.SizeLimitedUploadHandler",
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+]

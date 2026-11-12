@@ -3,3 +3,6 @@ django-allauth[mfa]==65.22.0
 psycopg[binary]==3.3.8
 python-dotenv==1.2.4
 cryptography==50.0.2
+boto3==1.44.1
+Pillow==12.3.0
+pypdf==6.21.4

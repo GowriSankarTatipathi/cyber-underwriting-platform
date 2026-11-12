@@ -68,13 +68,16 @@ def case_detail(request, case_id):
     owner = is_owner(request.user, case)
     manager = can_manage(request.user, case)
     evidence_access = owner or case.consent_active
-    requests = visible_requests(request.user, case).prefetch_related("files") if evidence_access else []
+    requests = list(visible_requests(request.user, case).prefetch_related("files")) if evidence_access else []
+    from evidence.rules import control_summary
+    for item in requests:
+        item.evidence_summary = control_summary(item)
     grants = case.grants.select_related("user") if owner or manager else []
     invitations = case.invitations.order_by("-created_at") if owner or manager else []
     return render(request, "workspaces/case.html", {
         "case": case, "insurer_role": role, "owner": owner, "manager": manager,
         "requests": requests, "grants": grants, "invitations": invitations,
-        "evidence_access": evidence_access, "consent_form": ConsentForm(),
+        "evidence_access": evidence_access, "can_inventory": evidence_access and (owner or role or bool(requests)), "consent_form": ConsentForm(),
         "assignment_form": AssignmentForm(case, initial={"assignee": case.assignee}),
         "notes_form": NotesForm(instance=case),
         "events": case.audit_events.select_related("actor")[:20] if role else [],
@@ -243,11 +246,12 @@ def download_file(request, case_id, file_id):
 def export_case(request, case_id):
     case = get_case(request.user, case_id)
     items = visible_requests(request.user, case)
+    from evidence.exports import request_payload
     payload = {
-        "schema_version": 1, "reference": case.reference, "applicant": case.applicant.name,
+        "schema_version": 2, "reference": case.reference, "applicant": case.applicant.name,
         "case_type": case.kind, "service": case.service, "checklist_version": case.checklist.version,
         "recovery_targets": case.checklist.recovery_targets,
-        "requests": [{"id": str(item.pk), "title": item.title, "description": item.description, "freshness_days": item.freshness_days, "assignee": item.assigned_to.email if item.assigned_to else None} for item in items],
+        "requests": [request_payload(item) for item in items],
     }
     if insurer_role(request.user, case):
         payload["internal_notes"] = case.internal_notes
