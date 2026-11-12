@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from django.shortcuts import render
-from django.urls import path
+from django.urls import include, path
 
 from .assessment import assess_restore
 
@@ -23,4 +23,8 @@ def pilot_case(request):
     })
 
 
-urlpatterns = [path("", pilot_case, name="pilot_case")]
+urlpatterns = [
+    path("demo/", pilot_case, name="pilot_case"),
+    path("accounts/", include("allauth.urls")),
+    path("", include("workspaces.urls")),
+]
