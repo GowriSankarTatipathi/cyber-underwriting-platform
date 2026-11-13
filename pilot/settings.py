@@ -11,6 +11,7 @@ if not SECRET_KEY:
     raise ImproperlyConfigured("Set DJANGO_SECRET_KEY in .env. See README.md or run scripts/dev_db.py start.")
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,[::1]").split(",")
 ROOT_URLCONF = "pilot.urls"
+CSRF_FAILURE_VIEW = "workspaces.error_views.csrf_failure"
 WSGI_APPLICATION = "pilot.wsgi.application"
 INSTALLED_APPS = [
     "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions",
@@ -35,6 +36,7 @@ TEMPLATES = [{
         "django.template.context_processors.request",
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
+        "workspaces.context_processors.deployment_context",
     ]},
 }]
 DATABASES = {"default": {

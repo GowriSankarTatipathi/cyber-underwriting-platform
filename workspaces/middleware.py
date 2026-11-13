@@ -11,6 +11,12 @@ class WorkspaceSecurityMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        response = self.respond(request)
+        if not request.path.startswith("/static/"):
+            response["Cache-Control"] = "no-store, private"
+        return response
+
+    def respond(self, request):
         protected = not request.path.startswith(("/accounts/", "/static/", "/demo/"))
         if protected and request.user.is_authenticated and not local_password_only():
             if not Authenticator.objects.filter(user=request.user, type="totp").exists():
@@ -18,7 +24,4 @@ class WorkspaceSecurityMiddleware:
                 return redirect("mfa_activate_totp")
             if not any(record.get("method") == "mfa" for record in get_authentication_records(request, request.user)):
                 return redirect(reverse("mfa_reauthenticate") + "?" + urlencode({"next": request.get_full_path()}))
-        response = self.get_response(request)
-        if not request.path.startswith("/static/"):
-            response["Cache-Control"] = "no-store, private"
-        return response
+        return self.get_response(request)

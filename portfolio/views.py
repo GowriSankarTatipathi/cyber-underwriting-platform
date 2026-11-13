@@ -1,8 +1,10 @@
 import json
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 from evidence.permissions import require_reviewer
 from underwriting.permissions import require_decider
@@ -27,6 +29,7 @@ def edit(request, case, form, title, intro, save):
     if request.method == "POST" and form.is_valid():
         try:
             result = save(dict(form.cleaned_data))
+            messages.success(request, "Saved successfully.")
             if isinstance(result, ValidationRun):
                 return redirect("portfolio_validation_detail", case.pk, result.pk)
             if isinstance(result, Submission):
@@ -34,7 +37,7 @@ def edit(request, case, form, title, intro, save):
             return redirect("portfolio", case.pk)
         except ValidationError as error:
             form.add_error(None, "; ".join(error.messages))
-    return render(request, "workspaces/form.html", {"case": case, "form": form, "title": title, "intro": intro, "button": "Save"})
+    return render(request, "workspaces/form.html", {"case": case, "form": form, "title": title, "intro": intro, "button": "Save", "back_url": reverse("portfolio", args=[case.pk])})
 
 
 @login_required
@@ -56,13 +59,18 @@ def overview(request, case_id):
                 runs.append(services.require_validation(request.user, run))
             except Http404:
                 pass
+    submissions = list(case.capacity_submissions.select_related("relationship").order_by("-created_at"))
+    for submission in submissions:
+        submission.status_label, _ = services.submission_status(submission)
+    relationships = list(Relationship.objects.filter(insurer=case.insurer).select_related("recipient")) if can_manage(request.user, case) else []
+    for relationship in relationships:
+        relationship.can_revoke = services.can_revoke_relationship(request.user, case, relationship)
     return render(request, "portfolio/overview.html", {"case": case, "staff": staff, "owner": owner, "manager": can_manage(request.user, case),
         "permission": permitted, "outcomes": [o for o in rows if o.case_id == case.pk], "totals": totals,
         "dependencies": [d for d in case.provider_dependencies.select_related("provider", "service").filter(retirement__isnull=True) if services.permission_active(d.permission)] if staff and permitted else [],
         "concentration": services.concentration(request.user, case.insurer) if staff else [],
         "eligible_count": len(services.eligible_cases(request.user, case.insurer)) if staff else 0,
-        "runs": runs, "submissions": case.capacity_submissions.select_related("relationship").order_by("-created_at"),
-        "relationships": Relationship.objects.filter(insurer=case.insurer).select_related("recipient") if can_manage(request.user, case) else []})
+        "runs": runs, "submissions": submissions, "relationships": relationships})
 
 
 @login_required
@@ -158,8 +166,14 @@ def submission_create(request, case_id):
 def submission_detail(request, case_id, submission_id):
     case = access(request, case_id)
     submission = get_object_or_404(Submission, pk=submission_id, case=case)
-    return render(request, "portfolio/submission.html", {"case": case, "submission": submission,
+    return render(request, "portfolio/submission.html", {**submission_context(submission), "case": case,
         "owner": is_owner(request.user, case), "manager": can_manage(request.user, case), "payload": json.dumps(submission.payload, indent=2)})
+
+
+def submission_context(submission):
+    status, operational = services.submission_status(submission)
+    return {"submission": submission, "submission_status": status, "operational": operational,
+        "business_approved": bool(services.consent_active(submission)), "payload": json.dumps(submission.payload, indent=2)}
 
 
 @login_required
@@ -182,7 +196,8 @@ def submission_action(request, case_id, submission_id, action):
             return redirect("capacity_detail", case.pk, submission.pk)
         except ValidationError as error:
             form.add_error(None, "; ".join(error.messages))
-    return render(request, "portfolio/submission.html", {"case": case, "submission": submission, "title": title, "form": form, "payload": json.dumps(submission.payload, indent=2)})
+    context = submission_context(submission)
+    return render(request, "portfolio/submission.html", {**context, "case": case, "title": title, "form": form if context["operational"] else None})
 
 
 @login_required
@@ -218,4 +233,4 @@ def partner_detail(request, submission_id, export=False):
             return redirect("capacity_partner", submission.pk)
         except ValidationError as error:
             form.add_error(None, "; ".join(error.messages))
-    return render(request, "portfolio/submission.html", {"submission": submission, "partner": True, "form": form, "payload": json.dumps(submission.payload, indent=2)})
+    return render(request, "portfolio/submission.html", {**submission_context(submission), "partner": True, "form": form})

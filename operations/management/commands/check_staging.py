@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -14,6 +15,10 @@ class Command(BaseCommand):
         problems = []
         if settings.DEBUG:
             problems.append("DJANGO_DEBUG must be false")
+        if os.getenv("POSTGRES_PASSWORD") or os.getenv("POSTGRES_PASSWORD_FILE"):
+            problems.append("remove database administrator credentials from the application environment; mount its secret only in PostgreSQL")
+        if settings.LOCAL_PASSWORD_ONLY:
+            problems.append("set LOCAL_PASSWORD_ONLY=false in staging")
         if len(settings.SECRET_KEY) < 50 or "replace-with" in settings.SECRET_KEY:
             problems.append("configure a persistent random secret key of at least 50 characters")
         if not settings.ALLOWED_HOSTS or "*" in settings.ALLOWED_HOSTS:

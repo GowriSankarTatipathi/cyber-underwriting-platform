@@ -202,11 +202,15 @@ def relationship_active(relationship):
     return relationship.expires_at > timezone.now() and not hasattr(relationship, "revocation") and relationship.recipient.is_active
 
 
+def can_revoke_relationship(user, case, relationship):
+    return relationship.insurer_id == case.insurer_id and (relationship.created_by_id == user.pk or insurer_role(user, case) == "admin")
+
+
 @transaction.atomic
 def revoke_relationship(user, case, relationship):
     case = lock_case(user, case)
     require_decider(user, case)
-    if relationship.insurer_id != case.insurer_id:
+    if not can_revoke_relationship(user, case, relationship):
         raise Http404
     row = RelationshipRevocation.objects.get_or_create(relationship=relationship, defaults={"actor": user})[0]
     audit(case, user, "Capacity relationship revoked", str(relationship.pk))
@@ -247,6 +251,23 @@ def current_submission(submission):
     if checksum(submission.payload) != submission.sha256:
         raise Http404
     return submission
+
+
+def submission_status(submission):
+    """Human-readable status for already-authorized case viewers, never an access grant."""
+    if hasattr(submission, "revocation"):
+        return "Revoked", False
+    if submission.expires_at <= timezone.now():
+        return "Expired", False
+    try:
+        current_submission(submission)
+    except Http404:
+        return "Access paused — check case authorization, report and relationship", False
+    if not consent_active(submission):
+        if hasattr(submission, "consent"):
+            return "Business approval no longer active — prepare a new submission", False
+        return "Awaiting business approval", True
+    return ("Released to partner" if hasattr(submission, "release") else "Awaiting underwriter release"), True
 
 
 @transaction.atomic

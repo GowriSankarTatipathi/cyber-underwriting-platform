@@ -4,7 +4,7 @@ The application now includes a portable Docker configuration, deployment checks,
 
 ## Portable staging setup
 
-Docker is not installed on the implementation machine. Compose and CI YAML were parsed, but container images and the full Docker deployment have not been built or run here.
+The Docker CLI is installed on the implementation machine, but its daemon is stopped and its bundled Compose plugin is not registered with the CLI. The bundled Compose executable successfully validated disposable configuration. Container image build and hosted deployment have not been run here; CI now includes an image build and configuration checks.
 
 Install Docker Engine/Desktop with Compose, then from the repository root:
 
@@ -13,7 +13,24 @@ cp deploy/staging.env.example .env.staging
 chmod 600 .env.staging
 ```
 
-Edit `.env.staging` privately. Configure a persistent random Django secret, different application/database-administrator passwords, SMTP settings and a private versioned S3 bucket with encryption and all public-access blocks enabled. The existing [Phase 3 storage guide](PHASE3.md) describes required storage permissions. Use workload roles where available. Do not put credentials into source files or Git.
+Edit `.env.staging` privately. Configure a persistent random Django secret, a private application database password, SMTP settings and a private versioned S3 bucket with encryption and all public-access blocks enabled. The existing [Phase 3 storage guide](PHASE3.md) describes required storage permissions. Use workload roles where available. Do not put credentials into source files or Git.
+
+Store the separate database administrator password in `.local/staging/secrets/postgres_password`, mounted only into PostgreSQL. Do not put `POSTGRES_PASSWORD` or `POSTGRES_PASSWORD_FILE` in `.env.staging`: that file belongs to the application. PostgreSQL receives only database settings, not cloud or AI credentials. For a fresh deployment, create the secret without overwriting an existing file:
+
+```sh
+python - <<'PYSECRET'
+import os
+import secrets
+from pathlib import Path
+path = Path('.local/staging/secrets/postgres_password')
+path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, 'w') as stream:
+    stream.write(secrets.token_urlsafe(36) + '\n')
+PYSECRET
+```
+
+For an existing initialized database, securely place its **current** administrator password in that file and remove the old application-environment entry; changing initialization files does not rotate an existing database password. This uses the official image's [file-based secret support](https://hub.docker.com/_/postgres).
 
 The Compose stack contains PostgreSQL 17, Redis, Gunicorn, a Celery worker, one beat scheduler, ClamAV signature updates and an HTTPS Nginx proxy. The application database role cannot create databases or administer roles. Database and Redis ports are not published. The proxy binds only to `127.0.0.1:8443` by default; changing it to a public interface and choosing a domain is a separate deployment step.
 
@@ -27,10 +44,14 @@ openssl req -x509 -newkey rsa:3072 -sha256 -days 30 -nodes \
   -out .local/staging/tls/server.crt \
   -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1'
 chmod 600 .local/staging/tls/server.key
+python deploy/preflight.py
+docker compose --env-file .env.staging -f deploy/compose.yaml config --quiet
 docker compose --env-file .env.staging -f deploy/compose.yaml up --build -d
 docker compose --env-file .env.staging -f deploy/compose.yaml logs init
 docker compose --env-file .env.staging -f deploy/compose.yaml exec web python manage.py check_staging --connections
 ```
+
+The offline preflight checks file permissions, separate administrator credentials, explicit hosts/HTTPS origins, and certificate/key matching and dates. It does not contact external services or establish certificate trust. The web healthcheck connects only to loopback with a configured allowed Host header, so a domain-only host configuration works.
 
 Use a trusted certificate for an insurer pilot. Open `https://localhost:8443/` after the local certificate is trusted. Initialization runs deployment checks, migrations and static collection. ClamAV must finish downloading its signature database before uploads can pass scanning; inspect `antivirus-update` logs. Scanner errors quarantine evidence rather than accepting it. A missing S3/scanner/provider configuration is a readiness issue, not a successful deployment.
 
@@ -49,7 +70,7 @@ Set `STAGING_AI_PROVIDER=openai` in `.env.staging` only when configuring live AI
 
 Stop containers with `docker compose --env-file .env.staging -f deploy/compose.yaml down`. Omit `--volumes` to retain data. Back up the persistent Django secret separately: existing MFA secrets depend on it.
 
-The configuration follows Django's [deployment checklist](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/). CI is prepared in `.github/workflows/checks.yml`; it has not been run on GitHub during this task.
+The configuration follows Django's [deployment checklist](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/). CI is prepared in `.github/workflows/checks.yml`; it has not been run on GitHub during this task. It now installs matching PostgreSQL 17 recovery clients from the [official PostgreSQL repository](https://www.postgresql.org/download/linux/ubuntu/), enables the restore integration test, validates Compose using disposable files, builds the application image and checks its production configuration without deploying. `deploy/ci_config.py` is for disposable CI use only and refuses to overwrite existing operator files.
 
 ## Measure the insurer pilot
 
@@ -84,12 +105,12 @@ A successful local drill does not test cloud failover, restoring an S3 bucket in
 
 ## Verification performed
 
-The 195-test regression suite passed, including the existing real Redis/Celery and OCR tests. Two additional integration tests passed for exact recovery of separate document versions and monitoring through a real Celery worker: **197 tests passed in total**. The development database recovery drill verified 76 tables and its one existing legacy evidence file. Django checks and migration consistency also passed.
+The latest **250-test regression suite passed**, with real Redis/Celery, OCR and isolated database/evidence recovery tests enabled. Django checks, migration consistency, offline staging prerequisites and Compose configuration validation passed. The earlier Phase 6/7 development drill verified 76 tables and one legacy file; that historical drill predates the later portfolio/demo additions.
 
 ```sh
 python manage.py check
 python manage.py makemigrations --check --dry-run
-AI_RUN_QUEUE_TEST=1 RECOVERY_RUN_TEST=1 python manage.py test workspaces evidence underwriting ai_review operations monitoring --noinput
+LOCAL_PASSWORD_ONLY=false AI_RUN_QUEUE_TEST=1 RECOVERY_RUN_TEST=1 python manage.py test workspaces evidence underwriting ai_review operations monitoring portfolio --noinput
 ```
 
 The optional recovery test requires PostgreSQL client tools and database creation permission. Live provider calls, Docker execution, hosted deployment and insurer acceptance remain unverified. Browser automation was unavailable; routes and forms were exercised using Django tests.

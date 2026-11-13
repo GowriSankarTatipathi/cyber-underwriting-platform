@@ -62,13 +62,13 @@ Use a fictional address for local testing. Existing accounts are never reset. Pr
 4. The business owner opens the submission, previews the entire payload, named recipient and expiry, then approves that exact content fingerprint. The expiry must fit their grant and case authorization.
 5. The underwriter previews it again and records a release rationale. A changed decision or changed review snapshot blocks release and requires a new submission.
 6. The named partner signs in and opens **Capacity partner inbox**. They can read/download the released summary and append a receipt, clarification request, indicative interest or decline. They receive no case-page, evidence-file or insurer-workspace access. Responses do not change the underwriting decision or bind insurance.
-7. Owners or underwriters may revoke individual submissions. Underwriters may revoke the commercial relationship, blocking all its submissions. Each read, download and response rechecks the recipient, case consent, owner grant, content fingerprint, report approval, relationship and submission expiry/revocation.
+7. Owners or underwriters may revoke individual submissions. The relationship creator or an insurer administrator may revoke the commercial relationship, blocking all its submissions. Another assigned underwriter can revoke an individual case submission but cannot revoke someone else’s insurer-wide relationship. Each read, download and response rechecks the recipient, case consent, owner grant, content fingerprint, report approval, relationship and submission expiry/revocation.
 
 The partner inbox and release links are authenticated application routes, not public bearer links. No email or external partner API call is sent by release. A previously released report remains a dated historical snapshot if a newer decision is recorded; withdraw the report or revoke its submission to stop access. Revocation cannot recall files already downloaded.
 
 ## Verification
 
-The final 232-test regression suite passed, including 30 Phase 8 tests and the enabled real queue/OCR/recovery checks. The Phase 8 migration was applied to the local development database. Django system checks, migration consistency and the running server's readiness/sign-in routes passed. Screens and forms were exercised through Django HTTP tests; browser visual verification was not available.
+The latest 250-test regression suite passed, including the portfolio, fictional walkthrough, permission-hardening and enabled real queue/OCR/recovery checks. The Phase 8 migration was applied to the local development database. Django system checks, migration consistency and the running server's readiness/sign-in routes passed. Screens and forms were exercised through Django HTTP tests; browser visual verification was not available.
 
 Apply the migration and run checks from the activated virtual environment:
 
@@ -88,3 +88,5 @@ LOCAL_PASSWORD_ONLY=false AI_RUN_QUEUE_TEST=1 RECOVERY_RUN_TEST=1 python manage.
 ```
 
 Hosted Docker execution, live integrations, representative insurer acceptance and real-data model validation remain external validation work. See [Phase 6](PHASE6.md) and [Phase 7](PHASE7.md) for the deferred setup.
+
+For the isolated three-case demo, including a partner inbox, see [WALKTHROUGH.md](WALKTHROUGH.md). Reports now have readable control, condition and exception sections; exact JSON and fingerprints remain available in expandable details and downloads.

@@ -34,3 +34,7 @@ urlpatterns = [
     path("", include("evidence.urls")),
     path("", include("workspaces.urls")),
 ]
+
+handler403 = "workspaces.error_views.forbidden"
+handler404 = "workspaces.error_views.not_found"
+handler500 = "workspaces.error_views.server_error"

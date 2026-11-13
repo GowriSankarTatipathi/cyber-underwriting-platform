@@ -45,6 +45,16 @@ python scripts/dev_db.py stop
 
 Keep `.env` and its secret key across restarts: the key also protects stored MFA secrets. `.env`, `.local`, private samples, local mail, passwords, and the virtual environment are ignored by Git.
 
+## Complete fictional walkthrough
+
+The isolated [walkthrough guide](WALKTHROUGH.md) covers three sample cases and a fictional capacity partner. The new case navigation keeps **Portfolio & partners**, recovery, monitoring and follow-up work accessible from case pages.
+
+```sh
+python manage.py prepare_walkthrough_demo
+```
+
+This development-only command preserves existing cases and passwords, creates separate `walkthrough-…@example.test` accounts, and writes new credentials to `.local/walkthrough-credentials.txt`. It does not contact external services. The partner starts in its own inbox. Do not use these fixtures in staging.
+
 ## Demo sign-in and MFA
 
 For local testing, set `LOCAL_PASSWORD_ONLY=true` in your private `.env` and restart Django. With `DJANGO_DEBUG=true`, sign-in then requires only email and password, including for accounts already enrolled in MFA. Existing authenticator records are preserved. Set it back to `false` and restart to require authenticator codes again. Staging always requires MFA when `DJANGO_DEBUG=false`, regardless of this local switch.
@@ -89,7 +99,7 @@ The complete role-by-role walkthrough and S3 setup are in [PHASE3.md](PHASE3.md)
 
 ## Walk through Phase 4
 
-Open an authorized case and select **Findings, decisions & reports**. Create owned findings with priorities, reasons, deadlines, and evidence/fix/retest requests. Providers respond with exact evidence versions and linked retests; reviewers verify responses before closing findings.
+Open an authorized case and select **Follow-up & decisions**. Create owned findings with priorities, reasons, deadlines, and evidence/fix/retest requests. Providers respond with exact evidence versions and linked retests; reviewers verify responses before closing findings.
 
 Use **Prepare decision review** to inspect a frozen snapshot and record the underwriter's outcome, rationale, and open conditions. Underwriters can approve expiring exceptions, approve business reports, and create revocable report links for named business owners. **Open next renewal** creates a fresh case linked to the original history, with new evidence requirements and authorization.
 
@@ -145,3 +155,7 @@ Phase 4 is implemented locally. Reports are HTML with print styling and JSON dow
 Phase 5 adds Celery jobs, OCR, validated citations, accept/correct/reject actions, discrepancy flags, and underwriter-approved follow-ups. Local demo parsing is runnable now. The OpenAI adapter has mocked integration tests; live model access and extraction quality remain unverified until configured and evaluated. Phase 6/7 tooling is implemented locally; hosted staging, real provider connections and insurer acceptance remain external verification steps. Phase 8 now adds permissioned portfolio records, research baselines and approved partner submissions. Production model validation still requires representative historical data and independent review.
 
 See [Phase 8 portfolio and partners](PHASE8.md), [Phase 5 assisted review](PHASE5.md), [Phase 4 workflow](PHASE4.md), [Phase 3 evidence setup](PHASE3.md), [Phase 2 access rules](PHASE2.md), and [the insurer workshop guide](PILOT.md).
+
+## Latest verification
+
+The current regression suite passes **250 tests**, including 18 added checks for demo setup, the complete partner journey, access revocation races, concurrent invitation acceptance/replacement, role-sensitive navigation and deployment prerequisites. Real queue, OCR and isolated recovery tests were enabled. Django system checks and migration consistency passed; no new migration is required. Offline staging preflight and Compose validation passed with disposable files. Docker image execution and the GitHub workflow itself remain unverified locally because the Docker daemon is stopped. The implementation did not start the website, commit or push changes.

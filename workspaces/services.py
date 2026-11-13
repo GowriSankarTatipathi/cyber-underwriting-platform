@@ -68,13 +68,18 @@ def find_invitation(token, lock=False):
 
 @transaction.atomic
 def accept_invitation(token, user):
+    # Creation/revocation also lock the case first. Opposite ordering can deadlock
+    # when an old invitation is accepted while its replacement is issued.
+    invitation = find_invitation(token)
+    case = Case.objects.select_for_update().get(pk=invitation.case_id)
     invitation = find_invitation(token, lock=True)
+    user.refresh_from_db()
     if invitation.email.lower() != user.email.lower() or not user.is_active:
         raise Http404
     if not EmailAddress.objects.filter(user=user, email__iexact=invitation.email, verified=True).exists():
         raise Http404
     # Lock the case as well so consent changes cannot interleave acceptance.
-    invitation.case = Case.objects.select_for_update().get(pk=invitation.case_id)
+    invitation.case = case
     if not invitation_authorized(invitation):
         raise Http404
     grant, _ = SharingGrant.objects.update_or_create(case=invitation.case, user=user, defaults={

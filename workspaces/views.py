@@ -24,7 +24,21 @@ def home(request):
     destination = request.session.pop("workspace_return_to", "")
     if destination.startswith("/invitations/"):
         return redirect(destination)
-    return redirect("underwriter" if insurer_memberships(request.user).exists() else "portal")
+    if insurer_memberships(request.user).exists():
+        return redirect("underwriter")
+    if request.user.capacity_relationships.exists() and not accessible_cases(request.user).exists():
+        return redirect("capacity_inbox")
+    return redirect("portal")
+
+
+@login_required
+def walkthrough(request):
+    if not settings.DEBUG:
+        raise Http404
+    from .demo_data import DEMO_INSURER, SCENARIOS
+    cases = {case.reference: case for case in accessible_cases(request.user).filter(insurer__name=DEMO_INSURER)}
+    scenarios = [{"case": cases[reference], "description": description} for reference, _, description in SCENARIOS if reference in cases]
+    return render(request, "workspaces/walkthrough.html", {"scenarios": scenarios})
 
 
 @login_required
@@ -165,9 +179,9 @@ def invitation(request, token):
 @require_POST
 @transaction.atomic
 def consent(request, case_id):
-    case = get_case(request.user, case_id)
+    case = lock_case(get_case(request.user, case_id))
+    request.user.refresh_from_db()
     require_owner(request.user, case)
-    case = Case.objects.select_for_update().get(pk=case.pk)
     if request.POST.get("action") == "revoke":
         case.consent_revoked_at = timezone.now()
         case.save(update_fields=["consent_revoked_at"])
@@ -191,7 +205,8 @@ def consent(request, case_id):
 @require_POST
 @transaction.atomic
 def revoke_grant(request, case_id, grant_id):
-    case = get_case(request.user, case_id)
+    case = lock_case(get_case(request.user, case_id))
+    request.user.refresh_from_db()
     require_owner(request.user, case)
     grant = get_object_or_404(SharingGrant, pk=grant_id, case=case, role="technician")
     grant.revoked_at = timezone.now()
@@ -205,7 +220,8 @@ def revoke_grant(request, case_id, grant_id):
 @require_POST
 @transaction.atomic
 def revoke_invitation(request, case_id, invitation_id):
-    case = get_case(request.user, case_id)
+    case = lock_case(get_case(request.user, case_id))
+    request.user.refresh_from_db()
     invitation = get_object_or_404(Invitation, pk=invitation_id, case=case, accepted_at__isnull=True)
     if invitation.role == "owner":
         require_manager(request.user, case)
@@ -228,7 +244,16 @@ def assign_request(request, case_id, request_id):
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             case = lock_case(case)
+            request.user.refresh_from_db()
+            if not can_manage(request.user, case):
+                require_owner(request.user, case)
             require_evidence_access(request.user, case)
+            # Rebuild choices after acquiring the case lock: a grant may have
+            # expired or been revoked since the first form validation.
+            form = RequestAssignmentForm(case, request.POST)
+            if not form.is_valid():
+                messages.error(request, "That provider no longer has active case access. Choose an active provider.")
+                return redirect("assign_request", case.pk, item.pk)
             item.assigned_to = form.cleaned_data["assigned_to"]
             item.save(update_fields=["assigned_to"])
             audit(case, request.user, "Evidence request assigned", item.title)

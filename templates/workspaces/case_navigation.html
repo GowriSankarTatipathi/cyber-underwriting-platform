@@ -1,0 +1,1 @@
+<nav class="case-nav" aria-label="Case sections"><span class="small-label">{{ nav_case.reference }}</span><div>{% for link in case_links %}<a href="{{ link.url }}"{% if link.active %} aria-current="page"{% endif %}>{{ link.label }}</a>{% endfor %}</div></nav>
