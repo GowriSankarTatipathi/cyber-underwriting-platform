@@ -85,7 +85,7 @@ def validate_fact(fact, passages):
                 errors.append("The passage does not support this backup status.")
         elif " ".join(str(value).lower().split()) not in " ".join(lowered.split()):
             errors.append("The value must appear in the cited passage. Correct it using the source's wording.")
-    return {**fact, "normalized_value": value, "citations": citations, "validation_errors": list(dict.fromkeys(errors)), "valid": not errors}
+    return {**fact, "normalized_value": value, "submitted_citation_count": len(fact["citations"]), "citations": citations, "validation_errors": list(dict.fromkeys(errors)), "valid": not errors}
 
 
 def validate_extraction(payload, passages):

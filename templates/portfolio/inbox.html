@@ -1,0 +1,2 @@
+{% extends 'workspaces/base.html' %}
+{% block content %}<h1>Capacity partner inbox</h1><p>Active released submissions addressed to your account. Each submission has its own approval and expiry.</p><section class="panel">{% for submission in submissions %}<p><a href="{% url 'capacity_partner' submission.pk %}">{{ submission.payload.case_reference }} · {{ submission.payload.applicant }} · {{ submission.payload.insurer }}</a></p>{% empty %}<p>No active submissions addressed to you.</p>{% endfor %}</section>{% endblock %}

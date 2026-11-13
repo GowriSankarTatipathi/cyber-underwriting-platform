@@ -1,6 +1,6 @@
 # Cyber underwriting platform
 
-A local Django prototype for an insurer's cyber application and renewal workflow. Phases 1–5 include PostgreSQL, two workspaces, required MFA, case permissions, private evidence versions, control reviews, supervised restores, findings and fixes, saved decisions, approved reports, renewal history, and assisted evidence review with OCR and cited suggestions. All included cases and accounts are fictional.
+A local Django prototype for an insurer's cyber application and renewal workflow. Phases 1–8 include PostgreSQL, two workspaces, required MFA, case permissions, private evidence versions, control reviews, supervised restores, findings and fixes, saved decisions, approved reports, renewal history, assisted evidence review with OCR and cited suggestions, monitoring, pilot measurement tools, portfolio research and capacity submissions. Live integrations and insurer/model validation remain separate setup and evaluation steps. All included cases and accounts are fictional.
 
 The frontend uses Django templates and CSS. Next.js is not part of this implementation. The original Phase 1 restore comparison remains at `/demo/`.
 
@@ -47,6 +47,10 @@ Keep `.env` and its secret key across restarts: the key also protects stored MFA
 
 ## Demo sign-in and MFA
 
+For local testing, set `LOCAL_PASSWORD_ONLY=true` in your private `.env` and restart Django. With `DJANGO_DEBUG=true`, sign-in then requires only email and password, including for accounts already enrolled in MFA. Existing authenticator records are preserved. Set it back to `false` and restart to require authenticator codes again. Staging always requires MFA when `DJANGO_DEBUG=false`, regardless of this local switch.
+
+When running the regression suite with this local switch enabled, prefix the test command with `LOCAL_PASSWORD_ONLY=false` so the standard MFA assertions remain enabled. The authentication tests separately exercise password-only development sign-in and staging enforcement.
+
 The seed command writes random passwords into `.local/demo-credentials.txt`, readable only by your local user. It never resets an existing password. The four accounts are:
 
 | Email | Role |
@@ -56,7 +60,7 @@ The seed command writes random passwords into `.local/demo-credentials.txt`, rea
 | `owner@example.test` | Invited business owner |
 | `technician@example.test` | Invited IT provider technician |
 
-Each user must enroll their own authenticator app. Sign in, confirm your password when prompted, scan the QR code, enter the authenticator code, and save the recovery codes. Click **Overview** to continue; the first session may request an authenticator confirmation. Subsequent sign-ins require a password and authenticator code or a one-time recovery code. There is no demo MFA bypass.
+When password-only local testing is disabled, each user must enroll their own authenticator app. Sign in, confirm your password when prompted, scan the QR code, enter the authenticator code, and save the recovery codes. Click **Overview** to continue; the first session may request an authenticator confirmation. Subsequent sign-ins require a password and authenticator code or a one-time recovery code. Staging always enforces MFA; the local testing switch described above is ignored when debug mode is off.
 
 Demo emails are already marked verified by the trusted seed command. New accounts can only be created through an invitation addressed to their email. Public signup is closed. MFA secrets are encrypted in PostgreSQL; rate-limit and TOTP replay data use a shared database cache.
 
@@ -98,20 +102,46 @@ With the project database running:
 ```sh
 python manage.py check
 python -m pip install -r requirements-dev.txt
-python manage.py test workspaces evidence underwriting ai_review --noinput
+LOCAL_PASSWORD_ONLY=false python manage.py test workspaces evidence underwriting ai_review operations monitoring portfolio --noinput
 python manage.py makemigrations --check --dry-run
 ```
 
 Tests run against a separate PostgreSQL test database. They cover password and MFA flows, invitation binding and replay, cross-insurer isolation, expired/revoked access, contributor privacy, private evidence, restore verification, findings and fixes, decision snapshots, exceptions, approved report sharing, renewal history, CSRF, cited extraction, OCR, human review, retries, and the retained Phase 1 demonstration. With Redis running, prefix the test command with `AI_RUN_QUEUE_TEST=1` to include the real Celery worker test.
 
-## Scope and next phase
+## Phases 6 and 7
+
+Phase 6 adds portable Docker staging files, pilot review timers and quality metrics, plus encrypted database/evidence backups and isolated restore drills. See [PHASE6.md](PHASE6.md) for deployment prerequisites, insurer evaluation and recovery commands. Docker execution and a real insurer pilot still require your staging environment and participation.
+
+Phase 7 adds Microsoft Entra ID and AWS Backup adapters, authorized passive exposure and licensed credential feeds, CVE inventory matching, grouped observations, source reconciliation, internal findings, renewal comparisons and reminders. See [PHASE7.md](PHASE7.md). External polling defaults to disabled; fictional connections work locally.
+
+To schedule authorized monitoring and reminders, keep exactly one scheduler running beside Django and the worker:
+
+```sh
+celery -A pilot beat --schedule=.local/celerybeat-schedule --loglevel=INFO
+```
+
+Stop the scheduler with Ctrl+C before stopping the worker, queue and database. Run the expanded test suite with:
+
+```sh
+LOCAL_PASSWORD_ONLY=false AI_RUN_QUEUE_TEST=1 RECOVERY_RUN_TEST=1 python manage.py test workspaces evidence underwriting ai_review operations monitoring portfolio --noinput
+```
+
+The recovery test requires matching PostgreSQL client tools and database creation permission. Without those, omit `RECOVERY_RUN_TEST=1`; without Redis, omit `AI_RUN_QUEUE_TEST=1`.
+
+## Phase 8
+
+Open an authorized case and select **Portfolio research & capacity partners**. Business owners can authorize internal research separately from case access. Insurer reviewers can link observed incidents/losses to earlier decision snapshots and record shared-provider dependencies. Underwriters can run reproducible frequency/severity research with historical priority bands; a small fictional pilot correctly reports insufficient data.
+
+Capacity submissions require an existing commercial relationship, an approved current report, approval of the exact payload by the business owner, and an underwriter release. Named partners sign in to a separate inbox and respond without gaining case access. See [PHASE8.md](PHASE8.md) for account provisioning, the walkthrough, research limitations and permission rules.
+
+## Implementation scope
 
 Phase 3 adds private uploads, file checks and quarantine, document versions, service inventory, versioned recovery targets, evidence reviews, control assessments, backup jobs, and linked restore tests. Case exports include evidence provenance while preserving the Phase 2 authorization rules.
 
 Development uploads persist privately in `.local/evidence`. The S3 integration is implemented and tested with an emulator; a live bucket has not been configured or verified. Development file checks validate structure, not malware safety. A real pilot needs private versioned S3 storage and a configured external malware scanner. [PHASE3.md](PHASE3.md) explains both.
 
-Phase 4 is implemented locally. Reports are HTML with print styling and JSON downloads; named business-owner sharing requires sign-in, MFA, and current case access. Expiry is checked when records are accessed; email delivery and automatic reminder jobs are not implemented.
+Phase 4 is implemented locally. Reports are HTML with print styling and JSON downloads; named business-owner sharing requires sign-in, MFA, and current case access. Expiry is checked when records are accessed. Phase 7 adds internal reminder jobs; sending external email notifications remains a separate integration.
 
-Phase 5 adds Celery jobs, OCR, validated citations, accept/correct/reject actions, discrepancy flags, and underwriter-approved follow-ups. Local demo parsing is runnable now. The OpenAI adapter has mocked integration tests; live model access and extraction quality remain unverified until configured and evaluated. Phase 6 is staging and the insurer pilot; monitoring remains later work.
+Phase 5 adds Celery jobs, OCR, validated citations, accept/correct/reject actions, discrepancy flags, and underwriter-approved follow-ups. Local demo parsing is runnable now. The OpenAI adapter has mocked integration tests; live model access and extraction quality remain unverified until configured and evaluated. Phase 6/7 tooling is implemented locally; hosted staging, real provider connections and insurer acceptance remain external verification steps. Phase 8 now adds permissioned portfolio records, research baselines and approved partner submissions. Production model validation still requires representative historical data and independent review.
 
-See [Phase 5 assisted review](PHASE5.md), [Phase 4 workflow](PHASE4.md), [Phase 3 evidence setup](PHASE3.md), [Phase 2 access rules](PHASE2.md), and [the insurer workshop guide](PILOT.md).
+See [Phase 8 portfolio and partners](PHASE8.md), [Phase 5 assisted review](PHASE5.md), [Phase 4 workflow](PHASE4.md), [Phase 3 evidence setup](PHASE3.md), [Phase 2 access rules](PHASE2.md), and [the insurer workshop guide](PILOT.md).

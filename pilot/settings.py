@@ -14,8 +14,8 @@ ROOT_URLCONF = "pilot.urls"
 WSGI_APPLICATION = "pilot.wsgi.application"
 INSTALLED_APPS = [
     "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions",
-    "django.contrib.messages", "django.contrib.staticfiles", "workspaces", "evidence", "underwriting", "ai_review",
-    "allauth", "allauth.account", "allauth.mfa", "pilot",
+    "django.contrib.messages", "django.contrib.staticfiles", "workspaces", "evidence", "underwriting", "ai_review", "operations", "monitoring",
+    "allauth", "allauth.account", "allauth.mfa", "pilot", "portfolio",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -67,6 +67,8 @@ MFA_ADAPTER = "workspaces.auth.MFAAdapter"
 MFA_SUPPORTED_TYPES = ["totp", "recovery_codes"]
 MFA_TOTP_ISSUER = "Cyber Underwriting"
 MFA_TRUST_ENABLED = False
+# Explicit local testing switch; production always requires MFA.
+LOCAL_PASSWORD_ONLY = os.getenv("LOCAL_PASSWORD_ONLY", "false").lower() == "true"
 LOGIN_URL = "account_login"
 LOGIN_REDIRECT_URL = "/"
 ACCOUNT_LOGOUT_REDIRECT_URL = "/accounts/login/"
@@ -146,3 +148,12 @@ AI_PROVIDER_TIMEOUT = 60
 AI_LEASE_SECONDS = 300
 AI_MAX_ATTEMPTS = 3
 AI_TESSERACT_COMMAND = os.getenv("AI_TESSERACT_COMMAND", "tesseract")
+MONITORING_LIVE_ENABLED = os.getenv("MONITORING_LIVE_ENABLED", "false").lower() == "true"
+CELERY_BEAT_SCHEDULE = {
+    "authorized-monitoring-polls": {"task": "monitoring.tasks.schedule_monitoring", "schedule": 300.0},
+    "case-reminders": {"task": "monitoring.tasks.schedule_reminders", "schedule": 3600.0},
+}
+CSRF_TRUSTED_ORIGINS = [origin for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if origin]
+if os.getenv("DJANGO_TRUST_PROXY", "false").lower() == "true":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_REDIRECT_EXEMPT = [r"^health/(live|ready)/$"]

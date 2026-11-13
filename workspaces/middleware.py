@@ -3,6 +3,7 @@ from allauth.account.internal.flows.login import get_authentication_records
 from django.shortcuts import redirect
 from django.urls import reverse
 from urllib.parse import urlencode
+from .auth import local_password_only
 
 
 class WorkspaceSecurityMiddleware:
@@ -11,7 +12,7 @@ class WorkspaceSecurityMiddleware:
 
     def __call__(self, request):
         protected = not request.path.startswith(("/accounts/", "/static/", "/demo/"))
-        if protected and request.user.is_authenticated:
+        if protected and request.user.is_authenticated and not local_password_only():
             if not Authenticator.objects.filter(user=request.user, type="totp").exists():
                 request.session["workspace_return_to"] = request.get_full_path()
                 return redirect("mfa_activate_totp")

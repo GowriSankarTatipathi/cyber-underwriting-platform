@@ -1,0 +1,4 @@
+{% extends 'workspaces/base.html' %}
+{% block content %}<a class="back" href="{% url 'portfolio' case.pk %}">← Portfolio</a><h1>Historical risk-band evaluation</h1>
+<section class="panel"><h2>{{ run.metrics.status }}</h2><p>{{ run.metrics.limitations }}</p><p>Cutoff: {{ run.cutoff }} · Currency: {{ run.currency }}</p>{% for reason in run.metrics.reasons %}<p>{{ reason }}</p>{% endfor %}<p><a href="{% url 'portfolio_validation_export' case.pk run.pk %}">Export dataset, provenance and metrics ↓</a></p></section>
+<section class="panel"><h2>Reproducible research record</h2><p>Dataset hash: <code>{{ run.dataset_sha256 }}</code></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{ details }}</pre></section>{% endblock %}

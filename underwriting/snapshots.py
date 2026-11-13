@@ -76,7 +76,11 @@ def case_snapshot(case):
         for row in DraftDisposition.objects.filter(finding__case=case, action="publish").select_related("draft").order_by("pk")]
     # Preserve comparisons with Phase 4 snapshots until AI actually contributes a request.
     ai_material = {"ai_followups": ai_followups} if ai_followups else {}
-    return normalize({"schema_version": 2 if ai_followups else 1, "rule_versions": ["evidence-v1", "restore-v1", "underwriting-v1"], **ai_material,
+    monitoring_material = {}
+    if case.monitored_assets.exists():
+        from monitoring.rules import case_material
+        monitoring_material = {"monitoring": case_material(case)}
+    return normalize({"schema_version": 3 if monitoring_material else 2 if ai_followups else 1, "rule_versions": ["evidence-v1", "restore-v1", "underwriting-v1"], **ai_material, **monitoring_material,
         "case": {"id": case.pk, "reference": case.reference, "kind": case.kind, "applicant": case.applicant.name,
             "insurer": case.insurer.name, "renewal_of": case.renewal_of_id, "due_date": case.due_date,
             "internal_notes": case.internal_notes},

@@ -24,6 +24,9 @@ def pilot_case(request):
 
 
 urlpatterns = [
+    path("", include("portfolio.urls")),
+    path("", include("operations.urls")),
+    path("", include("monitoring.urls")),
     path("demo/", pilot_case, name="pilot_case"),
     path("accounts/", include("allauth.urls")),
     path("", include("ai_review.urls")),

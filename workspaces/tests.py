@@ -445,3 +445,36 @@ class AuthenticationTests(TestCase):
 
     def test_public_signup_closed(self):
         self.assertContains(self.client.get(reverse("account_signup")), "Sign Up Closed")
+
+    @override_settings(DEBUG=True, LOCAL_PASSWORD_ONLY=True)
+    def test_local_password_only_skips_enrollment(self):
+        response = self.client.post(reverse("account_login"), {"login": self.user.email, "password": PASSWORD}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.session["_auth_user_id"], str(self.user.pk))
+        self.assertEqual(self.client.get(reverse("portal")).status_code, 200)
+        self.assertFalse(Authenticator.objects.filter(user=self.user).exists())
+
+    @override_settings(DEBUG=True, LOCAL_PASSWORD_ONLY=True)
+    def test_local_password_only_skips_existing_authenticator_without_deleting_it(self):
+        TOTP.activate(self.user, generate_totp_secret())
+        response = self.client.post(reverse("account_login"), {"login": self.user.email, "password": PASSWORD}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get(reverse("portal")).status_code, 200)
+        self.assertTrue(Authenticator.objects.filter(user=self.user, type="totp").exists())
+
+    @override_settings(DEBUG=True, LOCAL_PASSWORD_ONLY=True)
+    def test_local_password_only_still_rejects_wrong_password(self):
+        self.client.post(reverse("account_login"), {"login": self.user.email, "password": "wrong-password"})
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    @override_settings(DEBUG=False, LOCAL_PASSWORD_ONLY=True, SECURE_SSL_REDIRECT=False)
+    def test_local_switch_cannot_disable_staging_authenticator(self):
+        TOTP.activate(self.user, generate_totp_secret())
+        response = self.client.post(reverse("account_login"), {"login": self.user.email, "password": PASSWORD})
+        self.assertRedirects(response, reverse("mfa_authenticate"), fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    @override_settings(DEBUG=False, LOCAL_PASSWORD_ONLY=True, SECURE_SSL_REDIRECT=False)
+    def test_local_switch_cannot_disable_staging_enrollment(self):
+        self.client.post(reverse("account_login"), {"login": self.user.email, "password": PASSWORD})
+        self.assertRedirects(self.client.get("/"), reverse("mfa_activate_totp"), fetch_redirect_response=False)
