@@ -16,7 +16,7 @@ WSGI_APPLICATION = "pilot.wsgi.application"
 INSTALLED_APPS = [
     "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions",
     "django.contrib.messages", "django.contrib.staticfiles", "workspaces", "evidence", "underwriting", "ai_review", "operations", "monitoring",
-    "allauth", "allauth.account", "allauth.mfa", "pilot", "portfolio",
+    "allauth", "allauth.account", "allauth.mfa", "pilot", "portfolio", "assurance",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

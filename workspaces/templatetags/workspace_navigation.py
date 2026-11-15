@@ -11,6 +11,7 @@ def case_navigation(context, case):
     role, owner = insurer_role(request.user, case), is_owner(request.user, case)
     links = [("Case overview", reverse("case", args=[case.pk]))]
     if owner or case.consent_active:
+        links.append(("Unified assessment" if role else "Customer risk actions", reverse("assessment", args=[case.pk])))
         links.append(("Follow-up & decisions" if role else "Follow-up work", reverse("workflow", args=[case.pk])))
         if role or owner or visible_requests(request.user, case).exists():
             links.append(("Services & recovery", reverse("service_inventory", args=[case.pk])))

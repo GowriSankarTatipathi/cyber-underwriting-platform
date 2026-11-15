@@ -80,7 +80,10 @@ def case_snapshot(case):
     if case.monitored_assets.exists():
         from monitoring.rules import case_material
         monitoring_material = {"monitoring": case_material(case)}
-    return normalize({"schema_version": 3 if monitoring_material else 2 if ai_followups else 1, "rule_versions": ["evidence-v1", "restore-v1", "underwriting-v1"], **ai_material, **monitoring_material,
+    from assurance.services import assessment_material
+    assessment = assessment_material(case)
+    assessment_extra = {"assessment": assessment} if assessment else {}
+    return normalize({"schema_version": 4 if assessment else 3 if monitoring_material else 2 if ai_followups else 1, "rule_versions": ["evidence-v1", "restore-v1", "underwriting-v1"], **ai_material, **monitoring_material, **assessment_extra,
         "case": {"id": case.pk, "reference": case.reference, "kind": case.kind, "applicant": case.applicant.name,
             "insurer": case.insurer.name, "renewal_of": case.renewal_of_id, "due_date": case.due_date,
             "internal_notes": case.internal_notes},

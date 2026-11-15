@@ -47,6 +47,15 @@ Keep `.env` and its secret key across restarts: the key also protects stored MFA
 
 ## Complete fictional walkthrough
 
+The expanded [complete demonstration](COMPLETE_DEMO.md) adds three `FULL-` cases for the existing demo accounts: policy/claim history and imports, customer risk actions, explainable scoring, internal/external comparisons, software-version matching, preparation drafts, provider-outage scenarios, synthetic research and self-approved demo acceptance.
+
+```sh
+python manage.py migrate
+python manage.py prepare_complete_demo
+```
+
+Open **Demo walkthrough → FULL-03 → Unified assessment**. The project owner can approve the marked fictional demo without a real insurer. AWS, live credentials and hosted deployment remain deferred. The original cases and passwords are preserved. See the guide for exact scope and demo limitations.
+
 The isolated [walkthrough guide](WALKTHROUGH.md) covers three sample cases and a fictional capacity partner. The new case navigation keeps **Portfolio & partners**, recovery, monitoring and follow-up work accessible from case pages.
 
 ```sh
@@ -112,7 +121,7 @@ With the project database running:
 ```sh
 python manage.py check
 python -m pip install -r requirements-dev.txt
-LOCAL_PASSWORD_ONLY=false python manage.py test workspaces evidence underwriting ai_review operations monitoring portfolio --noinput
+LOCAL_PASSWORD_ONLY=false python manage.py test workspaces evidence underwriting ai_review operations monitoring portfolio assurance --noinput
 python manage.py makemigrations --check --dry-run
 ```
 
@@ -133,7 +142,7 @@ celery -A pilot beat --schedule=.local/celerybeat-schedule --loglevel=INFO
 Stop the scheduler with Ctrl+C before stopping the worker, queue and database. Run the expanded test suite with:
 
 ```sh
-LOCAL_PASSWORD_ONLY=false AI_RUN_QUEUE_TEST=1 RECOVERY_RUN_TEST=1 python manage.py test workspaces evidence underwriting ai_review operations monitoring portfolio --noinput
+LOCAL_PASSWORD_ONLY=false AI_RUN_QUEUE_TEST=1 RECOVERY_RUN_TEST=1 python manage.py test workspaces evidence underwriting ai_review operations monitoring portfolio assurance --noinput
 ```
 
 The recovery test requires matching PostgreSQL client tools and database creation permission. Without those, omit `RECOVERY_RUN_TEST=1`; without Redis, omit `AI_RUN_QUEUE_TEST=1`.
@@ -158,4 +167,6 @@ See [Phase 8 portfolio and partners](PHASE8.md), [Phase 5 assisted review](PHASE
 
 ## Latest verification
 
-The current regression suite passes **250 tests**, including 18 added checks for demo setup, the complete partner journey, access revocation races, concurrent invitation acceptance/replacement, role-sensitive navigation and deployment prerequisites. Real queue, OCR and isolated recovery tests were enabled. Django system checks and migration consistency passed; no new migration is required. Offline staging preflight and Compose validation passed with disposable files. Docker image execution and the GitHub workflow itself remain unverified locally because the Docker daemon is stopped. The implementation did not start the website, commit or push changes.
+The current regression suite passes **277 tests**, including 27 assessment/demo checks plus the existing permission, evidence, workflow, integration and recovery coverage. Real queue, OCR and isolated recovery tests were enabled. The new assessment migration is applied; Django checks and migration consistency pass. All 45 populated assessment and detail pages returned HTTP 200 through an authenticated sign-in to the running local server. Full visual browser QA was unavailable because the browser access host could not be reached.
+
+The earlier offline staging preflight and Compose checks remain documented in Phase 6. Docker image execution, live integrations and the GitHub workflow itself remain unverified in this local session. AWS is deferred until deployment. No commit or push was performed. See [COMPLETE_DEMO.md](COMPLETE_DEMO.md) for the new cases, self-approval walkthrough and demo boundaries.

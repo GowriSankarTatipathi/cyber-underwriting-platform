@@ -38,7 +38,8 @@ def walkthrough(request):
     from .demo_data import DEMO_INSURER, SCENARIOS
     cases = {case.reference: case for case in accessible_cases(request.user).filter(insurer__name=DEMO_INSURER)}
     scenarios = [{"case": cases[reference], "description": description} for reference, _, description in SCENARIOS if reference in cases]
-    return render(request, "workspaces/walkthrough.html", {"scenarios": scenarios})
+    complete_cases = accessible_cases(request.user).filter(demo_profile__isnull=False).order_by("reference")
+    return render(request, "workspaces/walkthrough.html", {"scenarios": scenarios, "complete_cases": complete_cases})
 
 
 @login_required

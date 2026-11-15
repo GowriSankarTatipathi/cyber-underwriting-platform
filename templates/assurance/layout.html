@@ -1,0 +1,7 @@
+{% extends 'workspaces/base.html' %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{{ case.reference }} · {{ case.applicant.name }}</p><h1>Security & insurance assessment</h1><p class="muted">Evidence, risk actions and insurance records in one case workspace.</p></div></div>
+{% if demo %}<div class="notice"><strong>Fictional demonstration.</strong> You can approve the demo yourself. Research and provider observations are illustrative; no insurance is issued and no external service is contacted by the demo setup.</div>{% endif %}
+<nav class="case-nav" aria-label="Assessment sections"><div>{% for key,label in tabs %}<a href="{% url 'assessment_section' case.pk key %}"{% if section == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</div></nav>
+<div class="assessment-workspace">{% block assessment_content %}{% endblock %}</div>
+{% endblock %}
